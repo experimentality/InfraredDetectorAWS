@@ -14,7 +14,7 @@ IX. Implementar código.
 
 Antes de comenzar, es necesario crear una cuenta en Amazon Web Services (en caso de que aún no haya sido creada). Esta puede crearse en el sitio mismo.
 Por ahora, es importante que dicha cuenta de usuario tenga permisos completos para los módulos: AWS IoT y AWS IAM (Identity and Access Management).
-++++++++++´´´´´´´´´´´´´´´´´´+´+´+´+´´
+
 I. Configurar la board Edison.
 
 Intel provee documentación en línea en la cual se expone el procedimiento para configurar la board, después de conectarla correctamente. 
