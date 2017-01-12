@@ -1,3 +1,4 @@
-InfraredAWS
+Infrared-based door aperture detector using Amazon Web Services (Python SDK)
 
-Este es un proyecto de IOT para experimentality
+Sebastián Arango Muñoz
+Experimentality
