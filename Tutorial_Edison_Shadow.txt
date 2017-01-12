@@ -1,0 +1,127 @@
+Detección de apertura de puerta. 
+Sensor Infrarojo + Intel Edison + Amazon Web Services IoT + Python
+
+Índice
+I. Configurar la board Edison.
+II. Instalar paquetes.
+III. Hardware.
+IV. Crear Thing (cosa).
+V. Crear Certificados y Políticas.
+VI. Descargar claves.
+VII. Configurar AWS en el dispositivo.
+VIII. Actualizar y escuchar Shadow.
+IX. Implementar código.
+
+Antes de comenzar, es necesario crear una cuenta en Amazon Web Services (en caso de que aún no haya sido creada). Esta puede crearse en el sitio mismo.
+Por ahora, es importante que dicha cuenta de usuario tenga permisos completos para los módulos: AWS IoT y AWS IAM (Identity and Access Management).
+Para este último panel, es importante tener en cuenta que deben guardarse las claves de acceso, pues estas no pueden volverse a encontrar en el panel.
+
+I. Configurar la board Edison.
+
+Intel provee documentación en línea en la cual se expone el procedimiento para configurar la board, después de conectarla correctamente. 
+Si se está en un entorno Windows, la manera más fácil de configurarla es descargando la aplicación "Intel Edison Setup App" en el PC, la cual ejecuta paso a paso la configuración.
+Sin embargo puede hacerse sin problemas desde Linux o MacOS. Esta guía fue de gran ayuda para el proceso de conexión y configuración básica
+de la placa: http://www.instructables.com/id/A-Comprehensive-Intel-Edison-Getting-Started-Guide/?ALLSTEPS. 
+
+Básicamente, el proceso consiste en conectar la board como se indica, y abrir una conexión serial con el puerto que esta ocupa, a una rata de 115200 (en Windows puedes descargar PuTTY para este fin); 
+En caso de que sea el primer acceso a la board, los datos de autenticación son Username: root | Password (blank).
+Una vez autenticado en la board, el comando configure_edison --setup permite configurarla, conectar a Wi-Fi, etc.
+
+II. Instalar paquetes.
+
+Inicialmente, se debe verificar que Python esté instalado, pues es el lenguaje de programación usado para este ejemplo. No obstante,
+la Intel Edison puede ejecutar programas escritos en C, C++, node.js (JavaScript), etc. Esto puede verificarse mediante el comando
+python --version. Normalmente, las board Intel traen instalado por defecto Python 2.7.
+
+El instalador de paquetes de Python (pip) es una herramienta de gran utilidad a la hora de instalar paquetes y complementos en todo momento.
+Con la ayuda de este, se procede a instalar el AWS CLI, que es la interface de línea de comandos, desde
+la cual se pueden controlar varios servicios de AWS, escribiendo el siguiente comando en la terminal del Edison: pip install awscli.
+
+Después de instalarlo, es necesario tener a la mano el Access ID y el Access Key obtenidos en el módulo IAM de AWS. Para instalar dichas credenciales, se usa el comando: aws configure,
+y se llenan estos campos cuando la terminal los solicite. 
+
+Para trabajar con Python en AWS, es debido instalar los SDK que permiten comunicar al dispositivo con los servicios en la nube. Dichas herramientas de desarrollo
+pueden ser, dependiendo de las utilidades: AWSIoTPythonSDK, Boto3. Ambas pueden instalarse usando pip, así:
+pip install AWSIoTPythonSDK
+pip install Boto3
+
+III. Hardware.
+
+Elementos requeridos:
+- Par LED infrarrojo (emisor/receptor). 
+- 2 resistores 330 Ohm.
+- Intel Edison en board de desarrollo Arduino.
+- Jumpers.
+
+Un montaje general para este sistema en una placa basada en Arduino puede encontrarse fácilmente en internet,
+por ejemplo, el ilustrado en: http://abedulengenharia.blogspot.com.co/2011/11/circuito-emisor-receptor-infrarrojo-y.html
+
+IV. Crear Thing (cosa).
+
+En AWS, un "Thing" o cosa sirve para representar un dispositivo cualquiera, como un sensor, un Beacon, etc. Esta
+tiene varias propiedades, como el tipo de cosa, atributos definibles, y Shadow (sombra), entre otras. El Shadow 
+es una representación virtual del estado de una cosa en la nube, así que es la que simboliza el estado de sus
+atributos en línea, aún cuando el dispositivo se desconecta. Es por esto que dicha sombra es tan importante a la hora
+de enlazar dispositivos físicos con Amazon Web Services.
+
+Para crear un Thing, basta con dirigirse al panel AWS IoT -> Registry -> Things -> Create, y se nombra
+haciendo relación al dispositivo físico que representa. Los demás atributos son opcionales.
+
+V. Crear Certificados y Políticas.
+
+Con el fin de brindar comunicaciones más seguras entre los dispositivos y la nube, AWS maneja
+un sistema de seguridad basado en certificados de seguridad y políticas de autorización. Cada
+certificado debe tener adscrita una política de autorización, y estos a su vez se adhieren a las
+cosas (things) para permitirles comunicarse con otros servicios o dispositivos. 
+
+Para crear un certificado, basta con dirigirse al panel AWS IoT -> Security -> Certificates -> Create.
+Una vez allí, se recomienda crear un certificado rápido. Al crearlo, es importante descargar las claves que arroja
+el proceso, incluyendo el "rootCA", pues se utilizarán eventualmente para la autenticación del dispositivo. Se recomienda guardar todos los
+archivos de autenticación en una misma carpeta.
+
+En el caso de las políticas, se crean con un nombre de fácil identificación, y se especifican 
+las acciones y los recursos sobre los cuales se permite actuar. Para este ejemplo, se permitirán todas las acciones IoT (iot:*), sobre recursos por default (*).
+Basta con habilitar la casilla Allow (permitir), y dar click en Create. Lista la política de uso.
+
+Ahora, para vincular dicha política con el Certificado creado anteriormente, se accede a este y en sus opciones se escoge 
+"attach a policy" (agregar una Política), y se selecciona la Política creada. De igual forma, en las opciones del Certificado, pueden atarse de 
+una vez este mismo con el Thing creado inicialmente, accediendo a la opción "attach Thing".
+
+VI. Descargar claves.
+
+Este paso estuvo implícitamente sugerido en el numeral anterior. Es importante, al crear el certificado, descargar todas las claves
+que AWS otorga para este, incluyendo la clave "Root CA". Estas deben guardarse en una misma carpeta, de fácil recordación.
+
+VII. Configurar AWS en el dispositivo.
+
+Una vez accedido el procesador via SSH, en la terminal del Edison se emplea el comando "aws configure", el cual permite autenticar el dispositivo con
+AWS mediante la validación de los siguientes campos: 
+
+- AWS Access Key ID.
+- AWS Secret Access.
+- Region.
+- Output format.
+
+Los dos primeros campos se obtuvieron al principio de esta guía, cuando se requirió tener en regla
+los permisos desde IAM. En dicho panel, al crear un nuevo campo IAM, se crean nuevos Access Key que deben ser guardados por el usuario.
+La región es la previamente escogida para desarrollar el proyecto. Para efectos de este ejemplo, se seleccionó US-West-2 (Oregon). Es necesario
+aclarar que no todos los servicios funcionan igual en una u otra región.
+El formato de salida indica a AWS el formato en que los datos serán compartidos de un nodo a otro. Es una buena opción utilizar el formato 
+JavaScript Object Notation (json). Una vez introducidos estos campos, el dispositivo se encuentra autenticado con la nube.
+
+VIII. Actualizar y escuchar Shadow.
+
+El equipo de Amazon ha hecho un trabajo profundo al documentar muchas de las funcionalidades que Amazon Web Services provee. Entre ellas, ofrecen al
+público información y código sobre cómo actualizar y recibir datos de las sombras (Shadows) de los objetos (Things). Es menester aclarar que el código es de su 
+pertenencia, y está protegido por la Licencia Apache (Apache License v2.0), bajo la cual definen las directrices de publicación y réplica de sus contenidos. Una copia de dicha Licencia 
+puede encontrarse en el sitio http://aws.amazon.com/apache2.0 . Para este ejemplo, los códigos de Amazon usados corresponden a los archivos listenShadow.py y updateShadow.py, ambos modificados sutilmente
+en lo que respecta a la ubicación de las claves de autenticación, y el payload, pues ambas instancias son propias de cada implementación.
+
+IX. Implementar código.
+
+Como se mencionó anteriormente, el programa fue escrito en Python. Este, cuando es requerido, hace llamados a los otros archivos para efectuar la comunicación.
+Este corresponde al archivo infrared_open.py, y es un ejemplo básico ampliamente mejorable. Sesugiere implementar daemons (servicios "demonio") para ejecutar 
+el código una vez encendida la board, optimizar el código, etc.
+
+
+
